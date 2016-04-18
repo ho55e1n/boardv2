@@ -1,0 +1,270 @@
+git branch ecommerce
+git checkout ecommerce
+
+-------------------------------------------------------------
+
+#Add these to the models.py file
+
+from django.db import models
+from django.utils import timezone
+from django.contrib.auth.models import User
+
+class Author(models.Model):
+   first_name=Models.CharField(max_length=100)
+   last_name=Models.CharField(max_length=100)
+   
+   
+   def _unicode_(self):
+       return "%s, %s % (self.last_name, self.fist_name)   
+
+class Book(models.Model):
+    title= models.CharField(max_length=200)
+	author= models.ForeignKey(Author)
+	description= models.TextField()
+	publish_date= models.DateField(default=timezone.now)
+	price=models.DecimalField(decimal_places=2, max_digits=8)
+	stock= models.IntegerField(default=0)
+
+class Review(models.Model):
+    Book= models.ForeignKey(Book)
+	user= models.ForeignKey(User)
+	publish_date= mdoels.DateField(default-timezone.now)
+	text=models.TextField
+
+----------------------------------------
+
+./manage.py makemigrations store 
+./manage.py migrate store
+./manage.py runserver
+
+--------------------------------------------------
+
+#This is how the admin.py would now look like
+from django.contrib import admin
+
+from .models import Book,Author
+
+class BookAdmin (admin,ModelAdmin):
+    list_display = ('title','author','price','stock')
+
+class AuthorAdmin(admin.ModelAdmin):
+    list_display= ('last_name', 'first_name')
+
+admin.site.register(Book, BookAdmin)
+admin.site.register(Author, AuthorAdmin)
+
+------------------------------------------
+
+./manage.py runserver
+
+-------------------------------------------
+
+#This is how the base.html file would now look like
+{% extends 'bootstrap3/bootstrap3.html' %}
+{% load staticfiles %}
+(% load bootstrap3 %}
+(% bootstrap_styles theme='simplex' type='min.css' %}
+{% load compress %}  
+(% load bootstrap_themes %}
+
+{% block bootstrap3_extra_head %}
+     <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,700" rel="stylesheet" type="text/css">
+	 {% compress css %}
+	 <link href="{% static 'base/css/style.css %}" rel="stylesheet" type="text/css">
+	 {% endcompress%}
+{% endblock %} 
+
+{% block bootstrap3_title %}
+     {% block title %}
+           Welcome to Mystery Books!	 
+	 {% endblock %}
+{% endblock %}
+
+{% block bootstrap3_content %}
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+	   <div class="container">
+	     <div class="navbar-header">
+	       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+		      <span class="icon-bar"> </span>
+			  <span class="icon-bar"> </span>
+			  <span class="icon-bar"> </span>
+			</button>
+			<a href="{% url 'index' %}" class="navbar-brand">Mystery Books</a>	
+		</div>
+		  <div id="navbar" class="collapse navbar-collapse">
+		     <ul class="nav navbar-nav">
+		        <li class="hvr-curl-top-right"><a href="{% url 'index' %}">Home</a></li>
+			    <li class="hvr-curl-top-right"><a href="#about">About</a></li>
+			    <li class="hvr-curl-top-right"><a href="#contact">Contact</a></li>
+		     </ul>
+			 <div class="navbar-form pull-right">
+				{% if request.user.is_authenticated %}
+					Welcome, {% if request.user.first_name %}
+					{{ request.user.first_name}}
+					{% else %}
+					{{ request.user.username  }}
+					{% endif %}! <a href="(% url 'auth_logout' %}"> Log Out</a>
+				{% else %}
+					 Welcome, mysterious person! <a href="{% url 'auth_login' %}">Log In? </a> or <a href="{% url 'registration_register' %}">Register</a>
+				{% endif %}
+			 </div>
+		  </div>
+	     </div>
+	</nav>
+    <div class="container-fluid">
+	  <img src="{% static 'base/img/header_full.jpg' %}" class="bg"/>
+	  <div class="parallax">
+	    <div class="row">
+	     {% block body %}
+		 <div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+		   <div style="text-align:center"><h3>Welcome to our store!</h3></div>  		   //Changes were made here
+		     {% for book in books %}
+			 <a href="{% url 'book_details' book.id %}">
+			 <div class="storefront_book_display">
+			    <img src="{% static 'base/img/empty_cover.jpg' %}">
+				<span class="storefront_book_title">{{ book.title }}</span>
+				<span class="storefront_book_author">{{ book.author }}</span>
+			 </div>
+			 {% endfor}
+		   </div>
+		 </div>
+		 </a>
+		 {% endblock %}
+		</div>
+	  </div>
+	</div>
+	<div class="row text-center navbar footer">
+	  <div class="col-md-12">
+	     <p> 2015 Mystery Books </p>
+	  </div>
+	</div>
+{% endblock %}
+
+-----------------------------------------------------------
+
+#open the style.css file and the add the following to the end
+
+/* Storefront styles */
+
+.storefront_book_display{
+     width: 200px;
+	 display: inline-block;
+	 text-align: center;
+}
+
+.storefront_book_title{
+     font-size: 14px;
+	 display: block;
+	 font-weight: bold;
+	 
+}	 
+
+.storefront_book_title{
+     font-size: 11px;
+	 display: block;
+}
+
+-------------------------------------------------------------
+
+#This is how the views.py would now look like
+
+import ...
+
+def index(request):
+    return render (request, 'template.html')
+
+def store(request):
+     books= Book.objects.all()
+	 context= {
+	 'books': books,
+	 }
+	 return render(request, 'base.html', context)
+
+def book_details(request, book_id):
+     context= {
+	      'book': Book.objects.get(pk=book_id),
+		  }
+	 return render(request, 'store/detail.html',context)
+------------------------------------------------------------------
+
+//create a new html file inside the store template and call it detail.html
+
+{% extends 'base.html' %}
+
+(% load staticfiles %}
+
+(% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+   <div class="detail_book_display">
+      <img class="detail_book_img" src="{% static 'base/img/empty_cover.jpg' %}">
+	  <span class="detail_book_title">{{ book.title }}</span>
+	  <span class="detail_book_author">{{ book.author }}</span>
+	  <div class="detail_book_description">{{ book.description }}</div>
+	  <div class="detail_book_reviews_title">Reviews</div>
+	  <div class="detail_book_reviews">
+	     {% if book.reviews %}
+		    {% for review in book.reviews %}
+			   {{ review.text }}
+			{% endfor %}
+		 {% else %}
+		    There are no reviews for this book yet!
+		 {% endif %}
+		  
+	  </div>
+   </div>
+</div>
+{% endblock %}
+
+-----------------------------------------------------------------
+
+#open the style.css file and the add the following to the end
+
+/* Book detail styles */
+
+.detail_book_display {
+    text-align: center;
+	margin-top: 20px;
+}
+
+.detail_book_img {
+	margin-bottom: 20px;
+}
+
+.detail_book_title {
+	font-size: 20px;
+	display: block;
+	font-weight: bold;
+}
+
+.detail_book_title {
+	font-size: 16px;
+	display: block;
+}
+
+.detail_book_description {
+	text_align: left;
+	margin-top: 20px;
+	width: 80%;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.detail_book_reviws_title {
+	margin-top: 20px;
+	margin-bottom: 20px;
+	font-size: 20px;
+	display: block;
+	font-weight: bold;
+}
+
+----------------------------------------------------------
+#This is how the urls.py would now look like
+
+import ...
+
+urlpatterns= [
+    url(r'^$',views.store, name='index'),
+	url(r'^book/(\d+), views.book_details, name='book_details'),          //Change was made here
+]
+
+--------------------------------------------------------------

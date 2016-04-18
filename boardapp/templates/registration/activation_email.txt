@@ -1,0 +1,5 @@
+BIG UP for joining other bomboclats in {{site.name}}.
+
+you know what to do: (you only have {{expiration_days}} days to do this shit..
+http://{{ site.domain }}{% url "registration_activate" activation_key %}
+

@@ -1,0 +1,309 @@
+pip install paypalrestsdk==1.10.0
+
+---------------------------------------------------------------------------
+
+#This is how the views.py looks like
+
+from django.shortcuts import render
+from django.core.exceptions import ObjectDoesNotExist
+from .models import Book, BookOrder, Cart
+from django.core.urlresolvers import reverse
+from django.utils import timezone
+import paypalrestsdk
+
+def index(request):
+    return render(request, 'template.html')
+
+def store(request):
+    books= Book.objects.all()
+	context= {
+	    'books':book,
+	}
+	return render(request,'base.html',context)
+
+def book_details(request,book_id):
+    context= {
+	     'book':Book.objects.get(pk=book_id),
+	}
+	retrun render(request,'store/detail.html',context)
+
+def add_to_cart(request,book_id):
+    if request.user.is_authenticated():
+	    try:
+		    book = Book.objects.get(pk=book_id)
+		except ObjectDoesNotExist:
+            pass
+        else
+		    try:
+			    cart= Cart.objects.get(user=request.user, active =True)
+			except ObjectDoesNotExist:
+			    cart= Cart.objects.create(user=request.user)
+				cart.save()
+			cart.add_to_cart(book_id)
+		return redirect('cart')
+	else:
+	    return redirect('index')
+
+def remove_from_cart(request,book_id):
+	if request.user.is_authenticated():
+	    try:
+		    book = Book.objects.get(pk=book_id)
+		except ObjectDoesNotExist:
+            pass
+        else
+			cart= Cart.objects.get(user=request.user, active =True)
+			cart.remove_from_cart(book_id)
+		return redirect('cart')
+	else:
+	    return redirect('index')	
+		
+def cart(request):
+    if request.user.is_authenticated():
+	    cart=cart.objects.filter(user=request.user_id, active=True)
+		orders= BookOrder.objects.filter(cart=cart)
+		total = 0
+		count= 0
+		for order in orders:
+		    total += (order.book.price * order.quantity)
+			count += order.quantity
+		context = {
+		    'cart' : orders,
+			'total': total,
+			'count': count,
+		}
+		return render(request, 'store/cart.html', context)
+	else:
+	    return redirect('index')
+		
+def checkout(request,processor):
+    if request.user.is_authenticated():
+	    cart=cart.objects.filter(user=request.user_id, active=True)
+		orders= BookOrder.objects.filter(cart=cart)
+		if processor= "paypal":
+		    redirect_url = checkout_paypal(request,cart,orders)
+			return redirect(redirect_url)
+	else:
+	    return redirect('index')
+
+def checkout_paypal(request,cart,orders):
+    if request.user.is_authenticated():
+        items = []
+		total=0
+		for order in orders:
+		    total += (order.book.price + order.quantity)
+			book= order.book
+			item= {
+		        'name': book.title,
+				'sku': book_id,
+				'price': str(book.price),
+				'currency': 'USD',
+				'quantity': order.quantity
+			}
+			items.append(item)
+		paypalrestsdk.configure({
+		    "mode": "sandbox",
+			"client_id": "*paste client id from restsdk add on*",
+			"client_secret": "*paste secret key from restsdk add on*",
+		payment= paypalrestsdk.Payment({
+		    "intent": "sale",
+			"payer": {
+			    "payment_method": "paypal"},
+			"redirect_urls": {
+			    "return_url": "http://localhost:8080/store/process/paypal",
+				"cancel_url": "http://localhost:8080/store"},
+			"transactions": [{
+			    "item_list": {
+				    "items": items},
+				"amount": {
+				    "total": str(total),
+					"currency": "USD"},
+				"description": "Mystery Books Order. "}]})
+		if payment.create():
+		    cart_instance = cart.get()
+			cart_instance.payment_id= payment.id
+			cart_instance_save()
+			for links in payment.links:
+			    if link.method == "REDIRECT":
+				    redirect_url = str(link.href)
+					return redirect_url
+		else:
+		    return reverse('order_error')
+	else:
+		    return redirect('index')		
+def order_error(request):
+    if request.user.is_authenticated():
+	    return render(request, 'store/order_error.html')
+	else:
+        return redirect('index')
+
+def process_order(request,processor):
+    if request.user.is_authenticated():
+	    if processor == "paypal":
+		   payment_id= request.GET.get('paymentId')
+		   cart= Cart.objects.filter(payment_id=payment_id)
+		   orders= BookOrder.objects.filter(cart=cart)
+		   total=0
+		   for order in orders:
+		      total +=(order.book.price * order.quantity)
+		   context= {
+		      'cart': orders,
+			  'total': total,
+			  }
+		   return render(request, 'store/process_order.html', context)
+	else:
+	    return redirect('index')
+
+def complete_order(request,processor):
+    if request.user.is_authenticated():
+	    cart= Cart.objects.get(user=request.user.id,active=True)
+		if processor == "paypal":
+		    payment= paypalrestsdk.Payment.find(cart.payment_id)
+			if payment.execute({"payor_id": payment.payer.payer_info.payer_id}):
+			    message= "Success! Your order has been completed, and is being processed. Payment id: %s" %(payment.id)
+				cart.active =False
+				cart.order_date= timezone.now()
+				cart.save()
+			else:
+			    message = "There was a problem with the transaction. Error: %s" % (payment.error.message)
+			context = {
+			    'message': message,
+			}
+			return render (request, 'store/order_complete.html',context)
+	else:
+	    return redirect('index')
+		
+-----------------------------------------------------------------------------------------------
+		
+		
+#This is how the urls.py would now look like
+
+import ...
+
+urlpatterns= [
+    url(r'^$',views.store, name='index'),
+	url(r'^book/(\d+)', views.book_details, name='book_details'),          
+    url(r'^add/(\d+)', views.add_to_cart, name='add_to_cart'),                  //Change was made here
+	url(r'^remove/(\d+)', views.remove_from_cart, name='remove_from_cart'),
+	url(r'^cart/'), views.cart, name='cart'),
+	url(r'^checkout/(\w+)', views.checkout, name='checkout'),
+	url(r'^process/(\w+)', views.process_order, name='process_order'),
+	url(r'^order_error/', views.order_error, name='order_error'),
+	url(r'^complete_order/(\w+)', views.complete_order, name='complete_order'),
+]
+
+-----------------------------------------------------------------------------------------------------
+
+
+#This is how the cart.html would now look like
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+    <div style="text-align:center;text-decoration:underline"><h3>Confirm your Order</h3></div>
+	    <div class="cart_container">
+		{% for item in cart %}
+		    <div class="cart_item">
+			    <div class="cart_listing">
+				    <span class="title">{{ item.book.title }}</span> by {{ item.book.author.first_name }} {{ item.book.author.last_name }}
+				</div>
+				<div class="cart_price">
+				    <span class="cart_quantity">{{ item.quantity }} x $<span class="cart_value">{{ item.book.price }}</span></span>
+					Quantity: <a href="{% url 'add_to_cart' item.book.id %}">[+]</a> / <a href="{ url 'remove_from_cart' item.book.id %}">[-]</a>
+				</div>
+			</div>
+		{% empty %}
+			<div>
+			There are no items in your cart.
+			</div>
+		{% endfor %}
+		<div class="cart_total">
+			 <h4> Total: $<span class="cart_value">{{ total }}</span></h4>
+			 {% if cart %}
+			 <div><a href="{% url 'checkout' 'paypal' %}"><img src="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"></a></div>
+			 {% endif %}
+		</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+-------------------------------------------------------------------------------------------------------------------
+
+#create a new template file process_order.html under the store templates and add the below code in it
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+    <div style="text-align:center;text-decoration:underline"><h3>Confirm your Order</h3></div>
+	    <div class="cart_container">
+		{% for item in cart %}
+		    <div class="cart_item">
+			    <div class="cart_listing">
+				    <span class="title">{{ item.book.title }}</span> by {{ item.book.author.first_name }} {{ item.book.author.last_name }}
+				</div>
+				<div class="cart_price">
+				    <span class="cart_quantity">{{ item.quantity }} x $<span class="cart_value">{{ item.book.price }}</span></span>
+				</div>
+			</div>
+		{% empty %}
+			<div>
+			There are no items in your cart.
+			</div>
+		{% endfor %}
+		<div class="cart_total">
+			 <h4> Total: $<span class="cart_value">{{ total }}</span></h4>
+			 {% if cart %}
+			 <a href="{% url 'complete_order' 'paypal' %}"><input type="submit" id="btn-logic" class="btn btn-success" value="Purchase"></a>
+			 {% endif %}
+		</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+----------------------------------------------------------------------------------------------------------
+
+#create a new template file order_complete.html under the store templates and add the below code in it
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+    <div style="text-align:center;text-decoration:underline"><h3>Order Summary</h3></div>
+	    <div class="cart_container">
+		    {{ message }}
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+------------------------------------------------------------------------------------------------------------------------
+
+#create a new template file order_error.html under the store templates and add the below code in it
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+    <div style="..."><h3>There was a problem with your Order</h3></div>
+	    <div class="cart_container">
+		    There was an error with your order.
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+----------------------------------------------------------------------------------------------------------------------------
+
+
+./manage.py runserver
+
+----------------------------------------------------------------------------------------------------------------------------
+	
+		

@@ -1,0 +1,432 @@
+
+pip install stripe==1.23.0
+
+----------------------------------------------------------------------------------------------
+
+#This is how the views.py looks like
+
+from django.shortcuts import render
+from django.core.exceptions import ObjectDoesNotExist
+from .models import Book, BookOrder, Cart
+from django.core.urlresolvers import reverse
+from django.utils import timezone
+from django.http import JsonResponse
+import paypalrestsdk, stripe
+
+from .models import Book, BookOrder, Cart, Review
+
+def index(request):
+    return render(request, 'template.html')
+
+def store(request):
+    books= Book.objects.all()
+	context= {
+	    'books':book,
+	}
+	return render(request,'base.html',context)
+
+def book_details(request,book_id):
+    context= {
+	     'book':Book.objects.get(pk=book_id),
+	}
+	retrun render(request,'store/detail.html',context)
+
+def add_to_cart(request,book_id):
+    if request.user.is_authenticated():
+	    try:
+		    book = Book.objects.get(pk=book_id)
+		except ObjectDoesNotExist:
+            pass
+        else
+		    try:
+			    cart= Cart.objects.get(user=request.user, active =True)
+			except ObjectDoesNotExist:
+			    cart= Cart.objects.create(user=request.user)
+				cart.save()
+			cart.add_to_cart(book_id)
+		return redirect('cart')
+	else:
+	    return redirect('index')
+
+def remove_from_cart(request,book_id):
+	if request.user.is_authenticated():
+	    try:
+		    book = Book.objects.get(pk=book_id)
+		except ObjectDoesNotExist:
+            pass
+        else
+			cart= Cart.objects.get(user=request.user, active =True)
+			cart.remove_from_cart(book_id)
+		return redirect('cart')
+	else:
+	    return redirect('index')	
+		
+def cart(request):
+    if request.user.is_authenticated():
+	    cart=cart.objects.filter(user=request.user_id, active=True)
+		orders= BookOrder.objects.filter(cart=cart)
+		total = 0
+		count= 0
+		for order in orders:
+		    total += (order.book.price * order.quantity)
+			count += order.quantity
+		context = {
+		    'cart' : orders,
+			'total': total,
+			'count': count,
+		}
+		return render(request, 'store/cart.html', context)
+	else:
+	    return redirect('index')
+		
+def checkout(request,processor):
+    if request.user.is_authenticated():
+	    cart=cart.objects.filter(user=request.user_id, active=True)
+		orders= BookOrder.objects.filter(cart=cart)
+		if processor= "paypal":
+		    redirect_url = checkout_paypal(request,cart,orders)
+			return redirect(redirect_url)
+		elif processor== "stripe":
+		    token = request.POST['stripeToken']
+			status= checkout_stripe(cart,orders,token)
+			if status: 
+			   return redirect(reverse('process_order', args=['stripe']))
+			else:
+			   return redirect('order_error', context= {"message": "There was a problem processing your payment."})
+	else:
+	    return redirect('index')
+
+def checkout_paypal(request,cart,orders):
+    if request.user.is_authenticated():
+        items = []
+		total=0
+		for order in orders:
+		    total += (order.book.price + order.quantity)
+			book= order.book
+			item= {
+		        'name': book.title,
+				'sku': book_id,
+				'price': str(book.price),
+				'currency': 'USD',
+				'quantity': order.quantity
+			}
+			items.append(item)
+		paypalrestsdk.configure({
+		    "mode": "sandbox",
+			"client_id": "*paste client id from restsdk add on*",
+			"client_secret": "*paste secret key from restsdk add on*",
+		payment= paypalrestsdk.Payment({
+		    "intent": "sale",
+			"payer": {
+			    "payment_method": "paypal"},
+			"redirect_urls": {
+			    "return_url": "http://localhost:8080/store/process/paypal",
+				"cancel_url": "http://localhost:8080/store"},
+			"transactions": [{
+			    "item_list": {
+				    "items": items},
+				"amount": {
+				    "total": str(total),
+					"currency": "USD"},
+				"description": "Mystery Books Order. "}]})
+		if payment.create():
+		    cart_instance = cart.get()
+			cart_instance.payment_id= payment.id
+			cart_instance_save()
+			for links in payment.links:
+			    if link.method == "REDIRECT":
+				    redirect_url = str(link.href)
+					return redirect_url
+		else:
+		    return reverse('order_error')
+	else:
+		    return redirect('index')
+			
+
+def checkout_stripe(cart,orders,token):
+    stripe.api_key = "*put in your stripe api_key*"
+	total=0
+	for order in orders:
+	    total += (order.book.price * order.quantity)
+	status = True
+	try:
+	    charge= stripe.Charge.create(
+		    amount= int(total*100),
+			currency= "USD",
+			source= token,
+			metadata= { 'order_id': cart.get().id}
+		)
+		cart_instance= cart.get()
+		cart_instance.payment_id = charge.id
+		cart_instance.save()
+	except stripe.error.CardError, 
+        status= False
+	return status
+	
+	
+def order_error(request):
+    if request.user.is_authenticated():
+	    return render(request, 'store/order_error.html')
+	else:
+        return redirect('index')
+
+def process_order(request,processor):
+    if request.user.is_authenticated():
+	    if processor == "paypal":
+		   payment_id= request.GET.get('paymentId')
+		   cart= Cart.objects.filter(payment_id=payment_id)
+		   orders= BookOrder.objects.filter(cart=cart)
+		   total=0
+		   for order in orders:
+		      total +=(order.book.price * order.quantity)
+		   context= {
+		      'cart': orders,
+			  'total': total,
+			  }
+		   return render(request, 'store/process_order.html', context)
+		elif processor== "stripe":
+		    return JsonResponse({'redirect_url': reverse('complete_order', args=['stripe']})		
+	else:
+	    return redirect('index')
+
+def complete_order(request,processor):
+    if request.user.is_authenticated():
+	    cart= Cart.objects.get(user=request.user.id,active=True)
+		if processor == "paypal":
+		    payment= paypalrestsdk.Payment.find(cart.payment_id)
+			if payment.execute({"payor_id": payment.payer.payer_info.payer_id}):
+			    message= "Success! Your order has been completed, and is being processed. Payment id: %s" %(payment.id)
+				cart.active =False
+				cart.order_date= timezone.now()
+				cart.save()
+			else:
+			    message = "There was a problem with the transaction. Error: %s" % (payment.error.message)
+			context = {
+			    'message': message,
+			}
+			return render (request, 'store/order_complete.html',context)
+		elif processor== "stripe":
+		    cart.active= False
+			cart.order_date= timezone.now()
+			cart.save()
+			message= "Success! Your order has been completed, and is being processed. Payment id: %s" %(cart.payment.id)
+			context = {
+			    'message': message,
+			}
+			return render (request, 'store/order_complete.html',context)
+	else:
+	    return redirect('index')
+	
+-----------------------------------------------------------------------------------------------------------
+
+#This is how the base.html now looks like
+
+{% extends 'bootstrap3/bootstrap3.html' %}
+{% load staticfiles %}
+(% load bootstrap3 %}
+(% bootstrap_styles theme='simplex' type='min.css' %}
+(% load bootstrap_themes %}
+
+{% block bootstrap3_extra_head %}
+     <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,700" rel="stylesheet" type="text/css">
+	 {% compress_css %}
+	 <link href="{% static 'base/css/style.css %}" rel="stylesheet" type="text/css">
+	 {% endcompress}
+	 <script src="https://ajax.googleapis.com/ajax/libs.jquery/2.1.4/jquery.min.js"></script>            //Changes were made here
+	 <script src="https://checkout.stripe.com/checkout.js"></script>
+	 {% compress js %}
+	 <script src="{% static 'base/js/jquery.cookie.js' %}"></script>
+	 {% endcompress %}
+{% endblock %}
+
+{% block bootstrap3_title %}
+     {% block title %}
+           Welcome to Mystery Books!	 
+	 {% endblock %}
+{% endblock %}
+
+{% block bootstrap3_content %}
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+	   <div class="container">
+	     <div class="navbar-header">
+	       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+		      <span class="icon-bar"> </span>
+			  <span class="icon-bar"> </span>
+			  <span class="icon-bar"> </span>
+			</button>
+			<a href="{% url 'index' %}" class="navbar-brand">Mystery Books</a>	
+		</div>
+		  <div id="navbar" class="collapse navbar-collapse">
+		     <ul class="nav navbar-nav">
+		        <li class="hvr-curl-top-right"><a href="{% url 'index' %}">Home</a></li>
+			    <li class="hvr-curl-top-right"><a href="#about">About</a></li>
+			    <li class="hvr-curl-top-right"><a href="#contact">Contact</a></li>
+		     </ul>
+			 <div class="navbar-form pull-right">
+				{% if request.user.is_authenticated %}
+					Welcome, {% if request.user.first_name %}
+					{{ request.user.first_name}}
+					{% else %}
+					{{ request.user.username  }}
+					{% endif %}! <a href="(% url 'auth_logout' %}"> Log Out</a>
+				{% else %}
+					 Welcome, mysterious person! <a href="{% url 'auth_login' %}">Log In? </a> or <a href="{% url 'registration_register' %}">Register</a>
+				{% endif %}
+			 </div>
+		  </div>
+	     </div>
+	</nav>
+    <div class="container-fluid">
+	  <img src="{% static 'base/img/header_full.jpg' %}" class="bg"/>
+	  <div class="parallax">
+	    <div class="row">
+	     {% block body %}
+		 <div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+		   <div style= "text-align:center"><h3>Welcome to our store!</h3></div>         //Changes are made here
+		   {% for book in books %}
+		   <div class="storefront_book_display">
+		   <a href="{% url 'book_details' book.id %}">
+		       <img src="{% static 'base/img/empty_cover.jpg' %}">
+			   <span class="storefront_book_title">{{ book.title }}</span>
+			   <span class="storefront_book_author">{{ book.author }}</span>
+			   </a>
+			   {% if request.user.is_authenticated %}
+			   <span class="storefront_add_to_cart">
+			       <a href="{% url 'add_to_cart' book.id %}">[Add to Cart]</a>
+			   </span>
+			   {% endif %}
+			</div>
+			{% endfor %}	
+		 </div>
+		 {% endblock %}
+		</div>
+	  </div>
+	</div>
+	<div class="row text-center navbar footer">
+	  <div class="col-md-12">
+	     <p> 2015 Mystery Books </p>
+	  </div>
+	</div>
+{% endblock %}
+
+-----------------------------------------------------------------------------------------------
+
+
+#This is how the cart.html would now look like
+
+{% extends 'base.html' %}
+{% load static %}
+(% load custom_filters %}
+
+{% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+    <div style="text-align:center;text-decoration:underline"><h3>Confirm your Order</h3></div>
+	    <div class="cart_container">
+		{% for item in cart %}
+		    <div class="cart_item">
+			    <div class="cart_listing">
+				    <span class="title">{{ item.book.title }}</span> by {{ item.book.author.first_name }} {{ item.book.author.last_name }}
+				</div>
+				<div class="cart_price">
+				    <span class="cart_quantity">{{ item.quantity }} x $<span class="cart_value">{{ item.book.price }}</span></span>
+					Quantity: <a href="{% url 'add_to_cart' item.book.id %}">[+]</a> / <a href="{ url 'remove_from_cart' item.book.id %}">[-]</a>
+				</div>
+			</div>
+		{% empty %}
+			<div>
+			There are no items in your cart.
+			</div>
+		{% endfor %}
+		<div class="cart_total">
+			 <h4> Total: $<span class="cart_value">{{ total }}</span></h4>
+			 {% if cart %}
+			 <div><a href="{% url 'checkout' 'paypal' %}"><img src="https://www.paypal.com/en_US/i/btn/btn_xpressCheckout.gif"></a></div>
+			 <div
+			    {% csrf_token %}
+				<a href="#">
+				    <img src="{% 'static/base/img/stripe.png' %}" id="customButton">
+					
+					<script>
+					    var csrftoken = $.cookie('csrftoken');
+						function csrfSafeMethod(method) {
+						    //There http method do not require csrf protection
+							return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+						}
+						$.ajaxSetup({
+						    beforeSend: function(xhr, settings) {
+							    if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+								    x@r.setRequestHeader("X-CSRFTOKEN", csrftoken);
+								}
+							}
+						
+						});
+						var handler = StripeCheckout.configure({
+						    key: '*put in your key here*',
+							token: function(token) {
+							    $.post("{% url 'checkout' 'stripe' %}", {'stripeToken': token.id, 'csrfmiddlewaretoken': csrftoken}, function(data) {
+								    window.location.replace(data['redirect_url']):
+								});
+							}
+						});
+						
+						$('#customButton').on('click', function(e) {
+						    //Open checkout with further options
+							handler.open({
+							    name: 'Mystery Books',
+								description: '{{ count }} book{{ count|pluralize }}',
+								currency: "USD",
+								amount: '{{ total|to_cents }}'
+							});
+							e.preventDefault();
+						});
+						
+						//Close checkout on Page Navigation
+						$(window).on('popstate',function() {
+						    handler.close();
+						});
+					</script>
+				</a>
+			 </div>
+			 {% endif %}
+		</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+
+-----------------------------------------------------------------------------------------------------------
+
+#Create a new directory inside the store directory and name it templatetags
+
+#Inside the templatetags, create a Python file by the name __init__.py. Leave this file blank for now.
+#Create another Python file called custom_filters.py inside the templatetags
+
+#Add the below code to your custom_filters.py file
+
+from django import template
+
+register= template.Library()
+
+@register.filter(name='to_cents')
+def to_cents(value):
+    return int(value*100)
+
+@register.filter(name='pluralize')
+def pluralize(value):
+    retval = ""
+    if value > 1:
+        retval= "s"	
+	return retval
+	
+-----------------------------------------------------------------------------------------------------------
+
+./manage.py runserver
+
+git checkout master
+
+git merge ecommerce
+
+------------------------------------------------------------------------------------------------------------
+
+

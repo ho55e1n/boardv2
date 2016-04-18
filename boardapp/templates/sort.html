@@ -1,0 +1,103 @@
+{% load staticfiles %}
+<header>
+
+    <script src="{% static 'js/jquery-1.12.3.min.js' %}"></script>
+    <script src="{% static 'js/jquery-ui.js' %}"></script>
+    <link href="{% static 'css/sort.css' %}" rel="stylesheet" type="text/css">
+
+
+</header>
+<body>
+<div class="container">
+    <ul id="sortable" class="item">
+
+        {% for i in images %}
+            {% if i.type == 'img' %}
+                <img id="image_{{ i.pk }}" src="{{ i.content.url }}" style="width: 300px; height:auto"><br>
+            {% endif %}
+        {% endfor %}
+
+    </ul>
+
+    <ul id="sortable2" class="item">
+        {% for i in images %}
+            {% if i.type == 'vid' %}
+                <video id="image_{{ i.pk }}" width="50%" height="auto" controls>
+                    <source src="{{ i.content.url }}" type="video/mp4">
+                </video>
+            {% endif %}
+        {% endfor %}
+
+
+    </ul>
+
+    <ul id="sortable3" class="item" style="min-height:10px;">
+
+    </ul>
+</div>
+
+</body>
+<script>
+    $(function () {
+        $("#sortable").sortable({
+            placeholder: "ui-sortable-placeholder",
+            connectWith: "#sortable3",
+            revert: true,
+            refreshPositions: true,
+            refresh: true,
+            start: function (event, ui) {
+                $(ui.item).width(300);
+            },
+            update: function (event, ui) {
+                var image_result = $('#sortable').sortable('serialize');
+                $.ajax({
+                    type: "POST",
+                    data: image_result + '&csrfmiddlewaretoken={{ csrf_token }}&active=true',
+                    url: ""
+                });
+            }
+        }).disableSelection();
+
+
+    });
+    $("#sortable2").sortable({
+        placeholder: "ui-sortable-placeholder",
+        connectWith: "#sortable3",
+        revert: true,
+        refreshPositions: true,
+        refresh: true,
+        start: function (event, ui) {
+            $(ui.item).width(300);
+        },
+        update: function (event, ui) {
+            var video_result = $('#sortable2').sortable('serialize');
+            $.ajax({
+                type: "POST",
+                data: video_result + '&csrfmiddlewaretoken={{ csrf_token }}&inactive=true',
+                url: ""
+            });
+        }
+
+    }).disableSelection();
+    $("#sortable3").sortable({
+        placeholder: "ui-sortable-placeholder",
+        connectWith: "#sortable, #sortable2",
+        revert: true,
+        tolerance: "pointer",
+        dropOnEmpty: true,
+        refreshPositions: true,
+        refresh: true,
+        start: function (event, ui) {
+            $(ui.item).width(300);
+        },
+        update: function (event, ui) {
+            var sorted_results = $('#sortable3').sortable('serialize');
+            $.ajax({
+                type: "POST",
+                data: sorted_results + '&csrfmiddlewaretoken={{ csrf_token }}&trash=true',
+                url: ""
+            });
+        }
+    }).disableSelection();
+
+</script>

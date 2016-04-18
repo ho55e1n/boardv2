@@ -1,0 +1,52 @@
+#Email Settings
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST='smtp.gmail.com'
+EMAIL_HOST_USER='put your email address here'
+EMAIL_HOST_PASSWORD='put your email password here'
+EMAIL_PORT=587
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = 'put in an email address that you want to show as the id from the email came'
+
+#Registration      // this is already there, you need to add the below setting to it
+
+LOGIN_REDIRECT_URL = '/store'    
+
+// Add all of the above to the settings.py file
+
+workon bookstore-django
+
+cd Development/bookstore/
+
+./manage.py runserver
+
+---------------------------------------------------------------------------
+
+//Create a new HTML template file and call it login and make a standard HTMl form inside it as shown in the video
+
+// Add the below to store.html file
+<!DOCTYPE html>
+<html>
+<head lang="en"...>
+<body>
+{% if request.user.is_authenticated %}
+  <h4>
+  Welcome, {% if request.user.first_name %}
+  {{ request.user.first_name }}
+  {% else %}
+  {{ request.user.username }}
+  {% endif %}! <a href='{% url 'auth_logout' %} > Log Out </a>
+  </h4>
+  {% else %}
+  <h4> Welcome, mysterious person! Would you like to <a href="{% url 'auth_login' %}">Log In ?</a></h4>
+{% endif %}
+Welcome to the Mystery Book Store! There are  {{ Count }} books in stock. User location {{ request.session.location }}
+</body>
+</html>
+
+--------------------------------------------------------------------------
+
+request.session['location']= "unknown"
+if request.user.is_authenticated():
+    request.session['location'] = "Earth"      //Add this under the store function in views.py
+

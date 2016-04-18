@@ -1,0 +1,31 @@
+pip install python-social-outh==0.2.7
+
+'social.apps.django_app.default',  // Add this to the INSTALLED_APPS section of settings.py file
+
+AUTHENTICATION_BACKENDS = ( 
+      'social.backends.facebook.FacebookOAuth2',
+	  'django.contrib.auth,backends.ModelBackend' )
+
+'social.apps.django_app.context_processors.backends',
+'social.apps.django_app.context_processors.login_redirect',  // add these two inside the templates section in settings.py
+
+#social_auth facebook
+
+SOCIAL_AUTH_FACEBOOK_KEY='<copy and paste the key from the facebook app>'
+SOCIAL_AUTH_FACEBOOK_SECRET='<copy and paste the secret from the facebook app>'  //Add this to the settings.py file as well
+
+url('',include('social.apps.django_app.urls',namespace='social'))  //add this to the url patterns inside the url.py file
+
+./manage.py migrate
+
+<a href="{% url 'social:begin' 'facebook' %}">Log In with Facebook</a>    // Add this to login.html inside the registration template
+
+./manage.py runserver
+
+git checkout master
+
+git merge auth-user
+
+
+
+

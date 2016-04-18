@@ -1,0 +1,50 @@
+cd Development/bookstore
+git checkout -b auth-user       // checks out the branch and switches over to it
+
+--------------------------------------------------------------------
+
+workon bookstore-django
+
+pip install django-registration-redux
+
+pip freeze   // shos all the packages installed in the current environment
+
+pip freeze > requirements.txt
+
+git add requirements.txt
+
+--------------------------------------------------------------------------
+
+// Add 'registration', to the INSTALLED_APPS section of settings.py
+
+----------------------------------------------------------------------------
+
+#Registration
+ACCOUNT_ACTIVATION_DAYS=7
+REGISTRATION_AUT_LOGIN= True     // Add this to settings.py
+
+-------------------------------------------------------------------------------
+
+url(r'^accounts/', include('registration.backends.default.urls'))  //Add this to url.py file
+
+//Create a new template by the name registration and make a activation_complete file inside it and add some content to the body
+//Create another html file by the name activate.html and add some content in the body section of it
+//Create another html file by the name registration_form and add create a html form in its body section
+//Create a registration complete HTML file and add the content in it as shown in the video
+// Create a new template by the name activation_email_subject and add content to it
+
+./manage.py showmigrations
+./manage.py runserver
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,53 @@
+{% load staticfiles %}
+
+<html>
+<head>
+    <link rel="stylesheet" href="{% static 'css/dropzone.css' %}">
+</head>
+
+<body>
+<form action="{% url 'upload' %}" class="dropzone" id="myDropzone" method='POST' enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <div class="fallback">
+        <input name="file" type="file" multiple/>
+    </div>
+</form>
+
+<script src="{% static 'js/dropzone.js' %}"></script>
+<script type="text/javascript">
+    Dropzone.options.myDropzone = {
+        paramName: "content", // name of our input
+        autoProcessQueue: false,
+        parallelUploads: 100,
+        maxFiles: 100,
+        maxFilesize: 200,
+        addRemoveLinks: true,
+        acceptedFiles: "image/*, video/mp4, video/webm",
+        dictDefaultMessage: "Make your memories immortalised!",
+        dictInvalidFileType: "File type not supported. You can upgrade to premium to have your files automatically converted!",
+
+
+        init: function () {
+            var submitButton = document.querySelector("#mySubmit")
+            myDropzone = this;
+            submitButton.addEventListener("click", function () {
+                myDropzone.processQueue();
+            });
+
+
+            this.on("complete", function (file, responseText) {
+                // call back on success
+                console.log(responseText);
+                window.setTimeout(function () {
+                    window.location.href = "/sort";
+                }, 3000);
+
+            });
+
+        }
+    };
+</script>
+<button id="mySubmit">NEXT</button>
+</body>
+</html>

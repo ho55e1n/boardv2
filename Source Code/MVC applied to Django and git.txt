@@ -1,0 +1,9 @@
+git  // Once you have installed git from the git website
+
+nano -w .gitignore // after you have downloaded the file
+
+# SQLite Databases
+*.sqlite3              // Insert this in the .gitignore file 
+
+git commit -m "Initial Commit"      // Commit saves the changes that we have made. The sentence inside the quotes is for our reference.
+

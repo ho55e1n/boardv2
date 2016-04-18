@@ -1,0 +1,181 @@
+git checkout -b upload_email
+
+--------------------------------------------------------------------------------------
+#Add the following to the settings.py file below the static url section
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_URL = "/media/"
+
+//Inside the Templates section of settings.py , add the below after the social
+
+'django.template.context_processors.media',
+
+---------------------------------------------------------------------------------------
+
+#This is how the project urls.py would now look like. Make sure this is not the url.py file that you used in the bookstore app
+
+from django.conf.urls import include,url
+from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+   # Examples:
+   # url (r'^$', 'bookstore.views.home', name='home'),
+   # url (r'^blog/', include('blog.urls')),
+   
+   url(r'^store/', include('store.urls'), name='store'),
+   url(r'^accounts/', include('registration.beckends.default.urls')),
+   url('', include('social.apps.django_app.urls', namespace='social')),
+   url(r'^admin/', include('admin.site.urls)), 
+] + static(settings.MEDIA_URL,document_root=settings.MEDIA_ROOT)
+
+---------------------------------------------------------------------------------------------
+
+#add the following changes to the models.py file
+
+def cover_upload_path(instance,filename)
+    return '/'.join(['books',str(instance.id),filename])
+	
+class Book(models.Model):
+     title=models.CharField(max_length=200)
+	 author=models.CharField(max_length=200)
+	 description=models.TextField()
+	 publish_date=models.DateField(default=timezone.now)   
+	 price= models.DecimalField(decimal_places=2,max_digits=0)
+	 stock= models.IntegerField(default=0)
+	 cover_image= models.ImageField(upload_to=cover_upload_path, default='books/empty_cover.jpg')        //Changes were made here
+	 
+-------------------------------------------------------------------------------------------------
+
+
+#This is how the base.html now looks like
+
+{% extends 'bootstrap3/bootstrap3.html' %}
+{% load staticfiles %}
+(% load bootstrap3 %}
+(% bootstrap_styles theme='simplex' type='min.css' %}
+(% load bootstrap_themes %}
+
+{% block bootstrap3_extra_head %}
+     <link href="http://fonts.googleapis.com/css?family=Open+Sans:400,300,700" rel="stylesheet" type="text/css">
+	 {% compress_css %}
+	 <link href="{% static 'base/css/style.css %}" rel="stylesheet" type="text/css">
+	 {% endcompress}
+	 <script src="https://ajax.googleapis.com/ajax/libs.jquery/2.1.4/jquery.min.js"></script>            //Changes were made here
+	 <script src="https://checkout.stripe.com/checkout.js"></script>
+	 {% compress js %}
+	 <script src="{% static 'base/js/jquery.cookie.js' %}"></script>
+	 {% endcompress %}
+{% endblock %}
+
+{% block bootstrap3_title %}
+     {% block title %}
+           Welcome to Mystery Books!	 
+	 {% endblock %}
+{% endblock %}
+
+{% block bootstrap3_content %}
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+	   <div class="container">
+	     <div class="navbar-header">
+	       <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+		      <span class="icon-bar"> </span>
+			  <span class="icon-bar"> </span>
+			  <span class="icon-bar"> </span>
+			</button>
+			<a href="{% url 'index' %}" class="navbar-brand">Mystery Books</a>	
+		</div>
+		  <div id="navbar" class="collapse navbar-collapse">
+		     <ul class="nav navbar-nav">
+		        <li class="hvr-curl-top-right"><a href="{% url 'index' %}">Home</a></li>
+			    <li class="hvr-curl-top-right"><a href="#about">About</a></li>
+			    <li class="hvr-curl-top-right"><a href="#contact">Contact</a></li>
+		     </ul>
+			 <div class="navbar-form pull-right">
+				{% if request.user.is_authenticated %}
+					Welcome, {% if request.user.first_name %}
+					{{ request.user.first_name}}
+					{% else %}
+					{{ request.user.username  }}
+					{% endif %}! <a href="(% url 'auth_logout' %}"> Log Out</a>
+				{% else %}
+					 Welcome, mysterious person! <a href="{% url 'auth_login' %}">Log In? </a> or <a href="{% url 'registration_register' %}">Register</a>
+				{% endif %}
+			 </div>
+		  </div>
+	     </div>
+	</nav>
+    <div class="container-fluid">
+	  <img src="{% static 'base/img/header_full.jpg' %}" class="bg"/>
+	  <div class="parallax">
+	    <div class="row">
+	     {% block body %}
+		 <div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+		   <div style= "text-align:center"><h3>Welcome to our store!</h3></div>         //Changes are made here
+		   {% for book in books %}
+		   <div class="storefront_book_display">
+		   <a href="{% url 'book_details' book.id %}">
+		       <img src="{{ MEDIA_URL }}{{ book.cover_image }}">
+			   <span class="storefront_book_title">{{ book.title }}</span>
+			   <span class="storefront_book_author">{{ book.author }}</span>
+			   </a>
+			   {% if request.user.is_authenticated %}
+			   <span class="storefront_add_to_cart">
+			       <a href="{% url 'add_to_cart' book.id %}">[Add to Cart]</a>
+			   </span>
+			   {% endif %}
+			</div>
+			{% endfor %}	
+		 </div>
+		 {% endblock %}
+		</div>
+	  </div>
+	</div>
+	<div class="row text-center navbar footer">
+	  <div class="col-md-12">
+	     <p> 2015 Mystery Books </p>
+	  </div>
+	</div>
+{% endblock %}
+   
+----------------------------------------------------------------------------------------------------------------------
+
+#This is how the details.html file would now look like
+
+{% extends 'base.html' %}
+
+(% load staticfiles %}
+
+(% block body %}
+<div class="col-md-8 col-md-offset-2 col-sm-12 maincontent">
+   <div class="detail_book_display">
+      <img class="detail_book_img" src="{{ MEDIA_URL }}{{ book.cover_image }}">
+	  <span class="detail_book_title">{{ book.title }}</span>
+	  <span class="detail_book_author">{{ book.author }}</span>
+	  <div class="detail_book_description">{{ book.description }}</div>
+	  <div class="detail_book_reviews_title">Reviews</div>
+	  <div class="detail_book_reviews">
+	     {% if book.reviews %}
+		    {% for review in book.reviews %}
+			   {{ review.text }}
+			{% endfor %}
+		 {% else %}
+		    There are no reviews for this book yet!
+		 {% endif %}
+		  
+	  </div>
+   </div>
+</div>
+{% endblock %}
+
+-----------------------------------------------------------------------------------------
+
+pip install pillow==2.9.0
+
+./manage.py makemigrations
+
+./manage.py migrate
+
+./manage.py runserver
+

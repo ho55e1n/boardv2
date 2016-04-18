@@ -1,0 +1,73 @@
+from django.db import models
+from django.utils import timezone
+
+class Book(models.Model):
+     title=models.CharField(max_length=200)
+	 author=models.CharField(max_length=200)
+	 description=models.TextField()
+	 publish_date=models.DateField(default=timezone.now)   //Add All this to models.py file
+
+-------------------------------------------------------------------------------------
+	 
+workon bookstore-django
+
+cd Development/bookstore/
+
+./manage.py makemigrations store         //for migrations
+
+./manage.py sqlmigrate store 0001        //Shows the SQL used for the transactions
+
+./manage.py migrate                      // Running migration, you can put app name for a specific migration
+
+./manage.py createsuperuser              // Creating superuser for the account
+
+./manage.py runserver
+
+------------------------------------------------------------------------------------------
+
+//add the below to admin.py
+
+from django.contrib import admin
+from .models import Book
+
+class BookAdmin(admin.ModelAdmin):
+    list_display=('title','author')
+
+admin.site.register(Book, BookAdmin)
+
+-----------------------------------------------------------------------------
+
+     price=models.DecimalField(decimal_places=2,max_digits=8)
+	 stock=models.IntegerField(default=0)                           #Add these two to the models.py file
+
+------------------------------------------------------------------------------
+	 
+./manage.py makemigrations     #select 1 and type 0.00
+
+./manage.py migrate
+
+./manage.py runserver
+
+-------------------------------------------------------------------------------
+
+#add the lines below to views.py
+
+from .models import Book
+
+def store(request):        // This must be already present
+    count= Book.objects.all().count()
+	context={ 'count':count,
+	}
+	
+	return render(request,'store.html',context)                //This is already present, you need to add 'context' to it
+
+------------------------------------------------------------------------------------
+	
+//Add "There are {{ count }} books in stock" to store.html template file
+
+cd store/
+
+git add migrations/
+
+git commit -am "Added Book model, Book admin class, changed store template"
+

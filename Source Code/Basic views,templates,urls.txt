@@ -1,0 +1,37 @@
+workon bookstore-django         // Starting the project
+
+cd Development/bookstore/      // Moving inside the project directory
+
+./manage.py startapp store    // starting the file that manages the app
+
+git add store     // Adding folder to git
+
+// add "store," under INSTALLED_APPS inside the settings.py file
+
+--------------------------------------------------------------
+
+//Inside views.py
+def index(request):
+      return render(request,'template.html')
+
+def store(request):
+      return render(request,'store.html')
+
+--------------------------------------------------------------------
+	  
+// create 2 new templates directory in the store app
+//Inside these template directory create a file each and add some content in the body
+
+./manage.py runserver
+
+----------------------------------------------------------------------
+
+url(r'^$', 'store.views.index',name='index'),    // Add this to the url.py file
+url(r'^store/', 'store.views.store',name='store'),
+
+-----------------------------------------------------------------------
+
+//The code below is to be used when we are bifurcating the url.py file
+from django.confs.urls import url
+from . import views
+urlpatterns = [url(r'^$', views.store,name='index'),]

@@ -1,0 +1,98 @@
+git branch frontend
+git checkout frontend
+
+--------------------------------------------------------------------
+
+'page':'welcome to mystery books!',    // add thid to the dtore function of views.py
+
+---------------------------------------------------------------------
+
+<title> {{ page|title }} </title>  // Add this template variable to the store.html template
+
+-----------------------------------------------------------------------
+
+./manage.py runserver
+
+------------------------------------------------------------------------
+
+<body>
+{% block content %}                       //Add this at the start of the body section in store.py
+
+-------------------------------------------------------------------------
+
+{% endblock %}                           // Add this at the end of the body section in store.py
+
+--------------------------------------------------------------------------
+
+git mv store/templates/store.html store/templates/base.html
+
+----------------------------------------------------------------------------
+
+{ extends 'base.html' %}
+{% block content %}                      //Add this at the start of activate.html in the registration template
+
+{% endblock %}                          // Add this at the end of activate.html in the registration template
+
+-------------------------------------------------------------------------------
+
+{ extends 'base.html' %}
+{% block content %}                      //Add this at the start of activation_complete.html in the registration template
+
+{% endblock %}                          // Add this at the end of activation_complete.html in the registration template
+
+---------------------------------------------------------------------------------
+
+{ extends 'base.html' %}
+{% block content %}                      //Add this at the start of login.html in the registration template
+
+{% endblock %}                          // Add this at the end of login.html in the registration template
+
+----------------------------------------------------------------------------------
+
+{ extends 'base.html' %}
+{% block content %}                      //Add this at the start of logout.html in the registration template
+
+{% endblock %}                          // Add this at the end of logout.html in the registration template
+
+-------------------------------------------------------------------------------------
+
+{ extends 'base.html' %}
+{% block content %}                      //Add this at the start of registration_complete.html in the registration template
+
+{% endblock %}                          // Add this at the end of registration_complete.html in the registration template
+
+----------------------------------------------------------------------------------------
+
+{ extends 'base.html' %}
+{% block content %}                      //Add this at the start of registration_form.html in the registration template
+
+{% endblock %}                          // Add this at the end of registration_form.html in the registration template
+
+---------------------------------------------------------------------------------------------
+
+<title> {% block title %} Welcome to Mystery books {% endblock}  <title>      // add this to the title tag of activate.html, removing the content which as there before
+
+-----------------------------------------------------------------------------------------------
+
+// change return render(request, 'store.html', context) to return render(request, 'base.html', context) at the end of the views.py file
+
+// inside store folder, create a new directory by the name static
+//Inside static, create another directory and call it base
+//Inside static create another directory and call it img
+
+//Grab the images from the aseets.zip folder shared in the 1st lecture of the course and paste them inside the img directory that you just created
+
+--------------------------------------------------------------------------------------------------
+
+<body background="{% static 'base/img/header_full.jpg' %}">    //Add this to the body tag of the base.html file
+
+{% load staticfiles %}                    // Add this to the top of base.html file
+
+./manage.py runserver
+
+git add static
+
+
+
+
+

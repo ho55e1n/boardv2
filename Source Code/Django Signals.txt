@@ -1,0 +1,84 @@
+./manage.py runserver
+
+--------------------------------------------------------------------------------------------
+
+//Create a new Python file under the store directory and call it signals.py
+
+from django.db.models.signals import post_save
+from django.dispatch import reciever
+from .models import Cart, BookOrder
+from django.template import Context
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+
+@receiver(post_save, sender=Cart)
+def adjust_stock(sender,instance, **kwargs):
+	if not instance.active:
+		#Decrement stock counts
+		orders= BookOrder.objects.filter(cart=instance)
+		for order in orders:
+			book=order.book
+			book.stock -= order.quantity
+			book.save()
+		#Send Thank You mail
+		subject = 'Thanks for shopping with Mystery Books!'
+		from_email= 'librarian@mysterybooks.com'
+		to_email= [instance.user.email]
+		
+		email_Context= Context({
+			'username': instance.user.username,
+			'orders': orders
+		})
+		
+		text_email= render_to_string('email/purchase_email.txt', email_context)
+		html_email= render_to_string('email/purchase_email.html', email_context)
+		
+		msg= EmailMultiAlterntives(subject,text_email,from_email,to_email)
+		msg.attach_alterntives(html_email, 'text/html')
+		msg.content_subtype = 'html'
+		msg.send()
+
+-------------------------------------------------------------------------------------------------------------------
+
+//Open the email template and add a new file called purchase_email.txt to it
+
+//Add the code given below to it
+
+Hello {{ username }}, thanks for buying your shiny new books with us! Here is what you have got coming your way:
+
+{% for order in orders %}
+{{ order.quantity }} x {{ order.book.title }} by {{ order.book.author }}
+{% endfor %}
+
+Ciao for now!
+
+Mystery Books
+
+-------------------------------------------------------------------------------------------------------------------
+
+//Open the email template and add a new file called purchase_email.html to it
+
+//Add the code given below to it
+
+<p>Hello {{ username }}, thanks for buying your shiny new books with us! Here is what you have got coming your way:</p>
+
+{% for order in orders %}
+<p>{{ order.quantity }} x {{ order.book.title }} by {{ order.book.author }}</p>
+{% endfor %}
+
+<p>Ciao for now!</p>
+
+<p>Mystery Books</p>
+
+------------------------------------------------------------------------------------------------------------------------
+
+//Open the _init_.py file that we created and left blank in an earlier lesson and add the line of code given below to it
+
+import signals
+
+-------------------------------------------------------------------------------------------------------------------------
+
+./manage.py runserver
+
+-------------------------------------------------------------------------------------------------------------------------
+
